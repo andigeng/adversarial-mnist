@@ -1,0 +1,2 @@
+model_checkpoint_path: "C:\\Users\\andig\\Google Drive\\Compsci Related\\Personal Projects\\adversarial-mnist\\saved_models/model.ckpt"
+all_model_checkpoint_paths: "C:\\Users\\andig\\Google Drive\\Compsci Related\\Personal Projects\\adversarial-mnist\\saved_models/model.ckpt"
