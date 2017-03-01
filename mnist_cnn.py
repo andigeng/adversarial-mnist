@@ -69,9 +69,11 @@ def train_model(_):
                 print("Step: {}".format(step))
                 feed_dict = {x:batch[0], y_: batch[1], keep_prob: 1.0}
                 sample_accuracy(feed_dict, to_print=True, test_type="training")
+                
             train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
-    testing_accuracy()
+        testing_accuracy()
+    
     save_path = saver.save(sess, SAVE_DIR)
 
     sess.close()
