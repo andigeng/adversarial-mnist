@@ -1,18 +1,11 @@
-import os
 import tensorflow as tf
+
 import cnn_functions as cf
-import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.examples.tutorials.mnist import input_data
+import utils
 
-
-
-CURR_DIR = os.path.dirname(__file__)
-DATA_DIR = os.path.join(CURR_DIR, "MNIST_data")
-SAVE_DIR = os.path.join(CURR_DIR, "saved_models/model.ckpt")
 
 # Import data
-mnist = input_data.read_data_sets(DATA_DIR, one_hot=True)
+mnist = utils.get_data()
 
 # Create the model
 # The following architecture is outlined in the 'Deep MNIST for experts' tutorial.
@@ -48,7 +41,6 @@ b_fc2 = cf.bias_variable([10])
 y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 
 
-
 # Define loss and optimizer
 y_ = tf.placeholder(tf.float32, [None, 10])
 
@@ -63,6 +55,22 @@ accuracy = tf.reduce_mean(tf.cast(is_prediction_correct, tf.float32))
 
 sess = tf.Session()
 saver = tf.train.Saver()
+
+
+def main():
+    with sess.as_default():
+        tf.global_variables_initializer().run()
+        load_model()
+        train_model()
+    sess.close()
+
+
+def load_model(directory=utils.SAVE_DIR):
+    """ Load a past session in. This sets all the weights equal to the previous session. """
+    print("Loading model.")
+    # Restore model from disk.
+    saver.restore(sess, directory)
+    print("Model loaded.")
 
 
 def train_model(save=True, steps=20000, batch_size=50):
@@ -81,73 +89,7 @@ def train_model(save=True, steps=20000, batch_size=50):
         train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
     testing_accuracy(to_print=True)
-    if save: saver.save(sess, SAVE_DIR)
-
-
-def load_model(directory):
-    """ Load a past session in. This sets all the weights equal to the previous session. """
-    print("Loading model.")
-    with sess.as_default():
-        # Restore model from disk.
-        saver.restore(sess, directory)
-        print("Model loaded.")
-
-
-def get_mistakes():
-    """ Returns images, labels, and predicted values of the misclassified test elements.
-
-    Returns:
-        images: a N by 784 numpy array representing N images
-        labels: a N by 10 numpy array representing the correct labels
-        predictions: a N by 10 numpy array repersenting the incorrect predictions
-    """
-    images = []
-    labels = []
-    predictions = []
-
-    for idx in range(1000):
-        image, label = get_test_element(idx)
-        pred = prediction.eval(feed_dict={x:image, keep_prob:1.0})
-        if label[0][pred] != 1:
-            # Append mistaken images
-            images.append(image[0])
-            # Append mistaken target labels
-            labels.append(label[0])
-            # Append predicted labels
-            incorrect_prediction = np.zeros(10)
-            incorrect_prediction[pred] = 1
-            predictions.append(incorrect_prediction)
-
-    images, labels, predictions = np.array(images), np.array(labels), np.array(predictions)
-    return images, labels, predictions
-
-
-def get_test_element(idx):
-    image = mnist.test.images[idx].reshape((-1, 784))
-    label = mnist.test.labels[idx].reshape((-1, 10))
-    return image, label
-
-
-def gen_adverarial():
-    """  """
-    pass
-
-
-def plot_image(image, label, prediction):
-    """
-    Input: 
-        image: length 784 numpy array, representing a 28x28 image
-        label: integer
-        prediction: integer
-    """
-    print('plotting')
-    figure, axes = plt.subplots()
-    image = image.reshape((28,28))
-    axes.imshow(image, cmap='gray_r')
-    axes.set_xlabel("Actual: {}, Predicted: {}".format(label, prediction))
-    axes.set_xticks([])
-    axes.set_yticks([])
-    plt.show()
+    if save: saver.save(sess, utils.SAVE_DIR)
 
 
 def testing_accuracy(to_print=True):
@@ -161,18 +103,6 @@ def sample_accuracy(feed_dict, to_print=True, test_type='training'):
     accuracy_ratio = accuracy.eval(feed_dict)
     if to_print: print("{} accuracy {}".format(test_type, accuracy_ratio))
     return accuracy_ratio
-
-
-
-def main():
-    with sess.as_default():
-        tf.global_variables_initializer().run()
-        load_model(SAVE_DIR)
-        images, labels, predictions = get_mistakes()
-        for k in range(3):
-            to_plot = images[k], np.argmax(labels[k]), np.argmax(predictions[k])
-            plot_image(*to_plot)
-    sess.close()
 
 
 if __name__ == '__main__':
