@@ -42,17 +42,13 @@ b_fc2 = cf.bias_variable([10])
 
 y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 
-
 # Define loss and optimizer
 y_ = tf.placeholder(tf.float32, [1, 10])
 
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_conv, labels=y_))
-optimizer = tf.train.AdamOptimizer(1e-3)
-
 
 prediction = tf.argmax(y_conv,1)
 target = tf.argmax(y_, 1)
-
 is_prediction_correct = tf.equal(prediction, target)
 accuracy = tf.reduce_mean(tf.cast(is_prediction_correct, tf.float32))
 
@@ -64,12 +60,11 @@ def main():
     with sess.as_default():
         tf.global_variables_initializer().run()
         load_model(utils.SAVE_DIR)
-        idx_arr = find_image_indices(2, 10)
+        idx_arr = find_image_indices(2, 3)
         for idx in idx_arr:
             image, _ = get_test_element(idx)
-            #adversarial_image, label, new_prediction = generate_adversarial_image(image, 6)
-            img, _, pred = generate_adversarial_image(image, 6)
-            plot_image(img, 2, pred)
+            args = generate_adversarial_image(image, 6, max_steps=10000)
+            plot_comparison(*args)
     sess.close()
 
 
@@ -81,28 +76,45 @@ def load_model(directory):
     print("Model loaded.")
 
 
-def generate_adversarial_image(image, target):
-    """
+def generate_adversarial_image(image, target, max_steps=10000, change_rate=1.0/4000, max_noise=0.25):
+    """ Given an image and target, tries to create an image that will be misclassified to target.
+    Input: 
+        image: a numpy array of length 784 representing a 28x28 image
+        target: integer
+    Output:
+        3 numpy arrays of length 784 representing the original image, noise, and adversarial image
     """
     label = get_target_label(target)
     noise = np.zeros((1, 784))
-    var_grad = tf.gradients(cross_entropy, [x])[0]
-    var_grad_val = None
+    # Generates gradients with respect to loss function and the input image.
+    gradient = tf.gradients(cross_entropy, [x])[0]
+    # This will hold the value of a gradient after being evaluated
+    gradient_value = np.zeros((1, 784))
 
-    for step in range(10000):
+    for step in range(max_steps):
+        # The adversarial image is the original image plus the noise image
         adversarial_image = image + noise
-        np.clip(adversarial_image, a_min=0.0, a_max=1.0, out=adversarial_image)
-        var_grad_val = sess.run(var_grad, feed_dict={x: adversarial_image, y_: label, keep_prob:1.0})
+        # We clip the values so that they are between 0 and 1
+        np.clip(adversarial_image, 0.0, 1.0, out=adversarial_image)
+        # Evaluate the gradient of the adversarial input with respect to our loss
+        gradient_value = sess.run(gradient, feed_dict={x: adversarial_image, y_: label, keep_prob:1.0})
 
-        if step%100 == 0: print(step)
+        if step%100 == 0: 
+            print(step)
         if prediction.eval(feed_dict={x:adversarial_image, keep_prob:1.0}) == target: 
             print(step)
             break
-
-        noise -= var_grad_val/1000
+        # We subtract the gradient from the noise. This ensures that on the next pass, the 
+        # chance of the model being fooled will increase.
+        noise -= gradient_value*change_rate
+        np.clip(noise, 0.0, max_noise, out=noise)
 
     new_prediction = prediction.eval(feed_dict={x:adversarial_image, keep_prob:1.0})[0]
-    return adversarial_image, label, new_prediction
+    
+    if new_prediction != target:
+        print("No adversarial image found. Try increasing max_steps or change_rate.")
+
+    return image, adversarial_image-image, adversarial_image
 
 
 def find_image_indices(target, quantity):
@@ -135,19 +147,35 @@ def get_target_label(num):
 
 
 def plot_image(image, label, prediction):
-    """
+    """ Plots an image with corresponding label and prediction.
     Input: 
-        image: length 784 numpy array, representing a 28x28 image
+        image: length 784 numpy array, representing a 28x28 imagez
         label: integer
         prediction: integer
     """
     print('plotting')
     figure, axes = plt.subplots()
     image = image.reshape((28,28))
-    axes.imshow(image, cmap='gray_r')
+    axes.imshow(image, cmap='gray_r', vmin=0.0, vmax=1.0)
     axes.set_xlabel("Actual: {}, Predicted: {}".format(label, prediction))
     axes.set_xticks([])
     axes.set_yticks([])
+    plt.show()
+
+
+def plot_comparison(image, noise, adversarial_image):
+    """ Plots the original image, noise, and adversarial image side by side.
+    Input: 
+        3 numpy arrays of size 784, each representing a 28x28 image 
+    """
+    plots = [(image, 'original'), (noise, 'noise'), (adversarial_image, 'adversarial')]
+    figure, axes = plt.subplots(1,3)
+    for idx, ax in enumerate(axes):
+        image_to_plot = plots[idx][0].reshape((28,28))
+        ax.imshow(image_to_plot, cmap='gray_r', vmin=0.0, vmax=1.0)
+        ax.set_xlabel("{} image".format(plots[idx][1]))
+        ax.set_xticks([])
+        ax.set_yticks([])
     plt.show()
 
 
