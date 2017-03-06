@@ -1,3 +1,10 @@
+"""Trains a convolutional neural network to classify MNIST digits.
+
+The architecture of the network is outlined in the 'Deep MNIST for experts'tutorial in the official 
+Tensorflow docs.
+"""
+
+
 import tensorflow as tf
 
 import cnn_functions as cf
@@ -60,7 +67,6 @@ saver = tf.train.Saver()
 def main():
     with sess.as_default():
         tf.global_variables_initializer().run()
-        load_model()
         train_model()
     sess.close()
 
@@ -103,6 +109,7 @@ def sample_accuracy(feed_dict, to_print=True, test_type='training'):
     accuracy_ratio = accuracy.eval(feed_dict)
     if to_print: print("{} accuracy {}".format(test_type, accuracy_ratio))
     return accuracy_ratio
+
 
 
 if __name__ == '__main__':

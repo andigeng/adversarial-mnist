@@ -1,3 +1,12 @@
+"""Creates 10 adversarial images of twos that are misclassified as sixes, and plots them.
+
+The architecture of the network is outlined in the 'Deep MNIST for experts' tutorial in the official 
+Tensorflow docs. The adversarial images are created by first calculating the gradient of the 
+input image with respect to the loss function. Then, we subtract this gradient value from our 
+noise image. This is then combined with the original image, and then fed back into the network.
+"""
+
+
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,7 +18,6 @@ import utils
 # Import data
 mnist = utils.get_data()
 
-# Create the model
 # The following architecture is outlined in the 'Deep MNIST for experts' tutorial.
 x = tf.placeholder(tf.float32, [1, 784])
 
@@ -76,9 +84,7 @@ def load_model(directory):
 
 
 def generate_adversarial_images(original_num, target_num, quantity, max_steps=10000):
-    """ 
-    Creates and returns three lists of images: original image, noise, and the adversarial image
-    """
+    """ Creates and returns three lists of images: originals, noise, and the adversarial images. """
     idx_arr = find_image_indices(original_num, quantity)
     image_arr, noise_arr, adversarial_arr = [], [], []
     
@@ -90,14 +96,12 @@ def generate_adversarial_images(original_num, target_num, quantity, max_steps=10
         adversarial_arr.append(adversarial)
 
     saved_arr = np.array(image_arr + noise_arr + adversarial_arr)
-    np.save('adversarial_grid', saved_arr)
+    np.save('adversarial_examples/adversarial_grid', saved_arr)
     return image_arr, noise_arr, adversarial_arr
 
 
 def generate_adversarial_image(image, target, max_steps, change_rate=1.0/4000):
-    """ 
-    Given an image and target, tries to create an image that will be misclassified to target.
-    """
+    """ Creates and returns three numpy arrays: image, noise, and the adversarial iamge. """
     label = get_target_label(target)
     noise = np.zeros((1, 784))
     # Generates gradients with respect to loss function and the input image.
@@ -108,13 +112,17 @@ def generate_adversarial_image(image, target, max_steps, change_rate=1.0/4000):
         # We clip the values so that they are between 0 and 1
         np.clip(adversarial_image, 0.0, 1.0, out=adversarial_image)
         noise = adversarial_image - image
-        # Evaluate the gradient of the adversarial input with respect to our loss
 
+        # Evaluate the gradient of the adversarial input with respect to our loss
         feed_dict = {x: adversarial_image, y_: label, keep_prob: 1.0}
         gradient_value = sess.run(gradient, feed_dict)
+
         if is_adversarial(adversarial_image, target):
+            # We stop the process when the adversarial image is correctly misclassified.
+            # This prevents the adversarial image from looking too different than the original.
             print("Adversarial image found. {} steps taken.".format(step))
             break
+
         noise -= gradient_value * change_rate
 
     if not is_adversarial(adversarial_image, target):
@@ -138,23 +146,23 @@ def find_image_indices(target, quantity):
 
 
 def plot_multiple_comparisons(image_arr, noise_arr, adversarial_arr):
-    """ Given three lists, plots and saves a n x 3 image
-    """
-    huge_arr = image_arr + noise_arr + adversarial_arr
+    """ Given three lists of images, plots and saves a n x 3 image comparing them. """
+    all_image_arr = image_arr + noise_arr + adversarial_arr
     num_images = len(image_arr)
+
     figure, axes = plt.subplots(num_images, 3)
     figure.set_size_inches(3, num_images, forward=True)
     
     for row, ax in enumerate(axes):
         for col, sub_ax in enumerate(ax):
-            image_to_plot = huge_arr[col*num_images + row].reshape((28,28))
-            sub_ax.imshow(image_to_plot, 
-                          cmap='gray_r', vmin=0.0, vmax=1.0, interpolation='nearest')
+            image_to_plot = all_image_arr[col*num_images + row].reshape((28,28))
+            sub_ax.imshow(image_to_plot, cmap='gray_r', vmin=0.0, vmax=1.0, interpolation='nearest')
             sub_ax.set_aspect("auto")
             sub_ax.set_xticks([])
             sub_ax.set_yticks([])
+
     figure.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
-    plt.savefig('adversarial_grid', dpi=112)
+    plt.savefig('adversarial_examples/adversarial_grid', dpi=112)
     plt.show()
 
 
@@ -174,6 +182,7 @@ def get_target_label(num):
 
 def is_adversarial(image, target):
     return prediction.eval(feed_dict={x:image, keep_prob:1.0}) == target
+
 
 
 if __name__ == '__main__':

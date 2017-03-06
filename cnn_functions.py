@@ -1,3 +1,6 @@
+"""Helper functions for constructing tensorflow graphs.
+"""
+
 import tensorflow as tf
 
 
