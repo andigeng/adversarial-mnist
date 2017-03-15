@@ -14,7 +14,7 @@ Within adversarial_generator.py:
 original_number = 2
 target_number = 6
 quantity = 10
-example_arr = generate_adversarial_images(original_num, target_num, quantity)
+example_arr = generate_adversarial_images(original_number, target_number, quantity)
 plot_multiple_comparisons(*example_arr)
 ```
 ### Training the original model
